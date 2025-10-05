@@ -1,90 +1,133 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="th">
-<head>
-  <meta charset="utf-8" />
-  <title>OCR นับสติ๊กเกอร์/ธีม (Standalone)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <head>
+    <meta charset="utf-8" />
+    <title>OCR นับสติ๊กเกอร์/ธีม (Standalone)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com" defer></script>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com" defer></script>
 
-  <style>
-    .canvas { max-width: 100%; border: 1px solid #e5e7eb; }
-    /* กัน progress bar มาบังคลิก */
-    #progressWrap { pointer-events: none; }
-    #progressWrap * { pointer-events: auto; }
-  </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-  <div class="max-w-7xl mx-auto p-6 space-y-6">
+    <style>
+      .canvas {
+        max-width: 100%;
+        border: 1px solid #e5e7eb;
+      }
+      /* กัน progress bar มาบังคลิก */
+      #progressWrap {
+        pointer-events: none;
+      }
+      #progressWrap * {
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto p-6 space-y-6">
+      <h1 class="text-2xl font-bold">OCR นับสติ๊กเกอร์/ธีม (Standalone)</h1>
 
-    <h1 class="text-2xl font-bold">OCR นับสติ๊กเกอร์/ธีม (Standalone)</h1>
+      <!-- ตั้งค่า -->
+      <section class="bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-3">
+          คำ/วลีที่ต้องการค้นหา (ไม่แยกตัวพิมพ์)
+        </h2>
+        <input
+          id="target"
+          type="text"
+          placeholder="เช่น น่ารักอ้วนน้อย หรือ Pink Cat"
+          class="w-full border rounded-lg px-3 py-2 mb-4"
+        />
 
-    <!-- ตั้งค่า -->
-    <section class="bg-white rounded-2xl shadow p-4">
-      <h2 class="font-semibold mb-3">คำ/วลีที่ต้องการค้นหา (ไม่แยกตัวพิมพ์)</h2>
-      <input id="target" type="text" placeholder="เช่น น่ารักอ้วนน้อย หรือ Pink Cat"
-             class="w-full border rounded-lg px-3 py-2 mb-4" />
-
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">วันเริ่มต้น</label>
-          <input id="start" type="date"
-                 class="w-full border rounded-lg px-3 py-2" />
-          <p class="text-xs text-gray-500 mt-1">แสดงผล: <span id="startDisplay">-</span></p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">วันเริ่มต้น</label>
+            <input
+              id="start"
+              type="date"
+              class="w-full border rounded-lg px-3 py-2"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              แสดงผล: <span id="startDisplay">-</span>
+            </p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">วันสิ้นสุด</label>
+            <input
+              id="end"
+              type="date"
+              class="w-full border rounded-lg px-3 py-2"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              แสดงผล: <span id="endDisplay">-</span>
+            </p>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">วันสิ้นสุด</label>
-          <input id="end" type="date"
-                 class="w-full border rounded-lg px-3 py-2" />
-          <p class="text-xs text-gray-500 mt-1">แสดงผล: <span id="endDisplay">-</span></p>
+      </section>
+
+      <!-- เลือกรูป -->
+      <section class="bg-white rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-3">เลือกรูป (หลายไฟล์)</h2>
+        <input
+          id="file"
+          type="file"
+          accept="image/*"
+          multiple
+          class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+        />
+        <div class="flex flex-wrap gap-3 mt-4">
+          <button
+            id="runAll"
+            class="px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 disabled:opacity-50"
+          >
+            🔍 เริ่ม OCR (ทุกรูป)
+          </button>
+          <button
+            id="clearAll"
+            class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+          >
+            ♻️ ล้างรายการ
+          </button>
         </div>
-      </div>
-    </section>
 
-    <!-- เลือกรูป -->
-    <section class="bg-white rounded-2xl shadow p-4">
-      <h2 class="font-semibold mb-3">เลือกรูป (หลายไฟล์)</h2>
-      <input id="file" type="file" accept="image/*" multiple
-             class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" />
-      <div class="flex flex-wrap gap-3 mt-4">
-        <button id="runAll" class="px-4 py-2 rounded-lg bg-pink-600 text-white hover:bg-pink-700 disabled:opacity-50">
-          🔍 เริ่ม OCR (ทุกรูป)
-        </button>
-        <button id="downloadAll" class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50" disabled>
-          ⬇️ ดาวน์โหลดรูปที่ไฮไลท์ทั้งหมด
-        </button>
-        <button id="clearAll" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200">
-          ♻️ ล้างรายการ
-        </button>
-      </div>
-
-      <!-- ความคืบหน้ารวม -->
-      <div id="progressWrap" class="mt-4 hidden">
-        <div class="flex justify-between text-xs text-gray-600 mb-1">
-          <span>ความคืบหน้ารวม</span><span id="ptext">0%</span>
+        <!-- ความคืบหน้ารวม -->
+        <div id="progressWrap" class="mt-4 hidden">
+          <div class="flex justify-between text-xs text-gray-600 mb-1">
+            <span>ความคืบหน้ารวม</span><span id="ptext">0%</span>
+          </div>
+          <div class="w-full h-2 bg-gray-200 rounded">
+            <div
+              id="pbar"
+              class="h-2 bg-pink-500 rounded"
+              style="width: 0%"
+            ></div>
+          </div>
         </div>
-        <div class="w-full h-2 bg-gray-200 rounded">
-          <div id="pbar" class="h-2 bg-pink-500 rounded" style="width:0%"></div>
+      </section>
+
+      <!-- สรุป -->
+      <section id="summaryWrap" class="bg-white rounded-2xl shadow p-4 hidden">
+        <h2 class="font-semibold mb-3">สรุปผล</h2>
+        <div class="text-lg">
+          ประมวลผลแล้วทั้งหมด
+          <span id="fileDone" class="font-semibold">0</span> รูป, พบ
+          <span id="globalCount" class="font-bold">0</span> รายการ
         </div>
-      </div>
-    </section>
+        <div id="btnViewPage" class="w-full mt-3"></div>
+      </section>
 
-    <!-- สรุป -->
-    <section id="summaryWrap" class="bg-white rounded-2xl shadow p-4 hidden">
-      <h2 class="font-semibold mb-3">สรุปผล</h2>
-      <div class="text-lg">ประมวลผลแล้วทั้งหมด <span id="fileDone" class="font-semibold">0</span> รูป,
-        พบ <span id="globalCount" class="font-bold">0</span> รายการ</div>
-    </section>
+      <!-- การ์ดรูป -->
+      <section
+        id="list"
+        class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+      ></section>
+    </div>
 
-    <!-- การ์ดรูป -->
-    <section id="list" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"></section>
-
-  </div>
-
-  <!-- Tesseract.js -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
-  <!-- แอปหลัก -->
-  <script src="app.js" defer></script>
-</body>
+    <!-- Tesseract.js -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
+      defer
+    ></script>
+    <!-- แอปหลัก -->
+    <script src="app.js"></script>
+  </body>
 </html>
