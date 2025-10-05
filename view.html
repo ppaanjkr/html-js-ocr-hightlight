@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>รายละเอียดรายการ</title>
+
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: { soft: '0 8px 30px rgba(0,0,0,.06)' }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    img[loading="lazy"] { opacity: 0; transition: opacity .3s ease; }
+    img[loading="lazy"].loaded { opacity: 1; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h1 id="itemTitle" class="text-2xl md:text-3xl font-semibold text-slate-900">
+            กำลังโหลดรายละเอียด…
+          </h1>
+        </div>
+        <div class="hidden md:block text-sm text-slate-500">
+          <span class="px-2 py-1 rounded-full bg-slate-100">OCR Console</span>
+        </div>
+      </div>
+      <p id="status" class="mt-2 text-sm text-rose-600"></p>
+    </header>
+
+    <!-- Summary Card -->
+    <section id="summaryCard" class="bg-white rounded-2xl shadow-soft p-5 md:p-6">
+      <!-- Skeleton while loading -->
+      <div id="summarySkeleton" class="animate-pulse">
+        <div class="h-5 w-56 bg-slate-200 rounded"></div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="h-20 bg-slate-100 rounded-xl"></div>
+          <div class="h-20 bg-slate-100 rounded-xl"></div>
+          <div class="h-20 bg-slate-100 rounded-xl"></div>
+        </div>
+      </div>
+
+      <!-- Filled after fetch -->
+      <div id="summaryDetails" class="hidden">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div>
+            <p class="text-sm uppercase tracking-wide text-slate-500">ชื่อรายการ</p>
+            <p id="summaryQuery" class="text-lg font-medium text-slate-900">—</p>
+          </div>
+          <div class="text-sm text-slate-500">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2h-1M6 5H5a2 2 0 00-2 2v12a2 2 0 002 2h1" />
+              </svg>
+              <span id="summaryDateRange">—</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="rounded-xl border border-slate-100 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">จำนวนรูปทั้งหมด</p>
+            <p id="statTotal" class="mt-1 text-2xl font-semibold">0</p>
+          </div>
+          <div class="rounded-xl border border-slate-100 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">จำนวนรูปที่พบรายการ</p>
+            <p id="statMatched" class="mt-1 text-2xl font-semibold">0</p>
+          </div>
+          <div class="rounded-xl border border-slate-100 p-4">
+            <p class="text-xs uppercase tracking-wide text-slate-500">จำนวนรายการ</p>
+            <p id="statSummary" class="mt-1 text-2xl font-semibold">0</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Files Section -->
+    <section class="mt-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold text-slate-900">รูปที่สแกน & ผลการค้นหา</h2>
+        <div id="fileCountBadge" class="hidden text-xs px-2.5 py-1 rounded-full bg-slate-200 text-slate-700"></div>
+      </div>
+
+      <div id="filePreviews" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- skeletons get injected here -->
+      </div>
+
+      <p id="noFiles" class="hidden mt-6 text-sm text-slate-500">ยังไม่มีรูปที่จะแสดง</p>
+    </section>
+  </div>
+
+  <script>
+    // === CONFIG ===
+    // Replace with your actual /exec URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxJ22X5hmFjUI7RyeMjtrBXi-Cw9Iu27QVyokpvE2dnnQGR66FcvSb7iQwMkG5Q6fdMsw/exec";
+
+    // === HELPERS ===
+    const $ = (sel) => document.querySelector(sel);
+    const params = new URLSearchParams(window.location.search);
+    const itemId = params.get("id");
+
+    const TH_MONTHS = [
+      "มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+      "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"
+    ];
+
+    function toThaiDate(dt) {
+      if (!dt || isNaN(dt.getTime())) return "—";
+      const d = dt.getDate();
+      const m = TH_MONTHS[dt.getMonth()];
+      const y = dt.getFullYear() + 543; // Buddhist Era
+      return `${d} ${m} ${y}`;
+    }
+
+    function parseDateInput(s) {
+      // Accepts ISO-like strings such as "2025-10-04" or "2025/10/04"
+      if (!s) return null;
+      const clean = s.replace(/\//g, "-");
+      const dt = new Date(clean);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function thaiDateRange(aStr, bStr) {
+      const a = parseDateInput(aStr);
+      const b = parseDateInput(bStr);
+      if (!a && !b) return "—";
+      if (a && b) return `${toThaiDate(a)} - ${toThaiDate(b)}`;
+      return a ? toThaiDate(a) : toThaiDate(b);
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = $("#status");
+      el.textContent = msg || "";
+      el.className = "mt-2 text-sm " + (isError ? "text-rose-600" : "text-slate-500");
+    }
+
+    function showSkeletonCards(n = 6) {
+      const grid = $("#filePreviews");
+      if (!grid) return;
+      grid.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-2xl shadow-soft p-4 animate-pulse";
+        card.innerHTML = `
+          <div class="h-44 bg-slate-100 rounded-xl"></div>
+          <div class="mt-3 h-4 w-2/3 bg-slate-200 rounded"></div>
+          <div class="mt-2 h-4 w-1/3 bg-slate-200 rounded"></div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function clearSkeletons() {
+      const grid = $("#filePreviews");
+      if (grid) grid.innerHTML = "";
+    }
+
+    // === RENDERERS ===
+    function renderSummary(item) {
+      $("#summarySkeleton").classList.add("hidden");
+      $("#summaryDetails").classList.remove("hidden");
+
+      $("#itemTitle").textContent = item?.SearchData ? `รายละเอียด: ${item.SearchData}` : "รายละเอียดรายการ";
+      $("#summaryQuery").textContent = item.SearchData || "—";
+      $("#summaryDateRange").textContent = thaiDateRange(item.SearchDateStart, item.SearchDateEnd);
+      $("#statTotal").textContent = item.ImageTotal ?? 0;
+      $("#statMatched").textContent = item.ImageMatch ?? 0;
+      $("#statSummary").textContent = item.Summary ?? 0;
+    }
+
+    function renderFiles(details) {
+      const grid = $("#filePreviews");
+      clearSkeletons();
+
+      if (!details || !Array.isArray(details) || details.length === 0) {
+        $("#noFiles").classList.remove("hidden");
+        $("#fileCountBadge").classList.add("hidden");
+        return;
+      }
+
+      $("#noFiles").classList.add("hidden");
+      $("#fileCountBadge").classList.remove("hidden");
+      $("#fileCountBadge").textContent = `${details.length} files`;
+
+      details.forEach(d => {
+        const card = document.createElement("article");
+        card.className = "bg-white rounded-2xl shadow-soft overflow-hidden border border-slate-100";
+
+        // Full image ratio (no crop): w-full h-auto
+        card.innerHTML = `
+          <div class="relative">
+            <img src="${d.FileUrl}" alt="${d.FileName || ''} preview" loading="lazy"
+                 class="w-full h-auto" onload="this.classList.add('loaded')">
+            <div class="absolute top-3 left-3 text-xs px-2 py-1 rounded-full bg-black/60 text-white">
+              ${d.MatchCount ?? 0}
+            </div>
+          </div>
+          <div class="p-4">
+            <p class="font-medium text-slate-900 truncate" title="${(d.FileName || '').replace(/"/g,'&quot;')}">${d.FileName || "Untitled"}</p>
+            <div class="mt-2 flex items-center justify-between text-sm text-slate-500">
+              <a href="${d.FileUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-slate-900">
+                เปิดไฟล์
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M7 17L17 7M7 7h10v10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </a>
+              <span class="px-2 py-1 rounded-md bg-slate-100">รายการที่พบ: ${d.MatchCount ?? 0}</span>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // === MAIN ===
+    async function getItemDetails() {
+      if (!itemId) {
+        $("#itemTitle").textContent = "Error: Item ID is missing from URL.";
+        setStatus("ใส่ ?id=YOUR_ID ที่ URL", true);
+        return;
+      }
+
+      setStatus("กำลังดึงข้อมูล…");
+      showSkeletonCards();
+
+      try {
+        // send the raw id (as requested)
+        const apiUrl = `${GAS_URL}?action=read&id=${itemId}`;
+        const res = await fetch(apiUrl);
+        const json = await res.json();
+
+        if (json.status === "success" && json.data) {
+          renderSummary(json.data);
+          renderFiles(json.data.Details);
+          setStatus("");
+        } else {
+          $("#itemTitle").textContent = "ไม่สามารถโหลดข้อมูลได้";
+          setStatus(json.message || "ดึงข้อมูลไม่สำเร็จ", true);
+          clearSkeletons();
+        }
+      } catch (err) {
+        $("#itemTitle").textContent = "เครือข่ายมีปัญหา";
+        setStatus(err.message || String(err), true);
+        clearSkeletons();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", getItemDetails);
+  </script>
+</body>
+</html>
